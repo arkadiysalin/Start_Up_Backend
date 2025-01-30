@@ -1,0 +1,13 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.15.0",
+    "fastapi>=0.115.5",
+    "python-dotenv>=1.0.1",
+    "scalar-fastapi>=1.0.3",
+    "uvicorn>=0.32.1",
+]
