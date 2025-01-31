@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(tags=["Freestyle BOT"])
 # Обработчик для статических файлов
-app.mount("/images", StaticFiles(directory="static"), name="images")
+# app.mount("/images", StaticFiles(directory="static"), name="images")
 
 origins = [
     "http://localhost:3000",
@@ -44,4 +44,4 @@ async def scalar():
  
 UPLOAD_DIR = os.path.abspath("uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)   
-app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
+# app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")

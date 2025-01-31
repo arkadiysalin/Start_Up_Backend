@@ -13,6 +13,12 @@ logging.basicConfig(level=logging.INFO)
 from fastapi import UploadFile, Request, HTTPException
 import os
 import json
+from typing import Optional
+from fastapi import APIRouter, Query, Depends
+import requests
+import base64
+import json
+import asyncio
 sbisRouter = APIRouter()
 
 
@@ -202,8 +208,91 @@ async def get_categories():
 #     # return {"kitchen_products": kitchen_products}
 #     return found_foods
 
+# @sbisRouter.get("/sbis-products")
+# async def download_kitchen_images():
+#     token: TokenValidation = await sbis.get_token(
+#         AuthorizationData(
+#             app_client_id=APP_CLIENT_ID,
+#             app_secret=APP_SECRET,
+#             app_secret_key=APP_SECRET_KEY
+#         )
+#     )
+
+#     # Получаем список точек продаж и прайс-листов
+#     poinID: dict = await sbis.get_point_id(token)
+#     menu: dict = await sbis.get_price_lists(token, poinID['salesPoints'][0]['id'])
+
+#     # Получаем список продуктов
+#     foods: dict = await sbis.get_foods(
+#         FoodsRequest(
+#             pointId=poinID['salesPoints'][0]['id'],
+#             priceListId=menu["priceLists"][3]["id"],
+#             withBalance=True,
+#             withBarcode=False,
+#             onlyPublished=False,
+#         ),
+#         token
+#     )
+
+#     # Создаем семафор для ограничения количества одновременных запросов
+#     semaphore = asyncio.Semaphore(10)
+
+#     downloaded_count = 0  # Счётчик загруженных изображений
+#     max_downloads = 20  # Лимит на количество скачиваний
+
+#     def decode_base64_param(encoded_param: str):
+#         """Декодирует параметр base64 и извлекает PhotoURL"""
+#         # Декодируем строку base64
+#         decoded_bytes = base64.b64decode(encoded_param)
+#         decoded_str = decoded_bytes.decode('utf-8')
+        
+#         # Парсим JSON строку
+#         decoded_json = json.loads(decoded_str)
+#         return decoded_json.get('PhotoURL')
+
+#     async def get_image_url(item, idx):
+#         nonlocal downloaded_count  # Чтобы обновлять счётчик в функции
+#         # Проверяем, есть ли изображения у продукта
+#         if 'images' in item and item['images'] and downloaded_count < max_downloads:
+#             image_url = item['images'][0]
+#             encoded_param = image_url.split('?params=')[-1]  # Извлекаем часть после ?params=
+#             photo_url = decode_base64_param(encoded_param)  # Декодируем base64 и извлекаем PhotoURL
+            
+#             if photo_url:
+#                 downloaded_count += 1  # Увеличиваем счётчик
+#                 return {
+#                     "id": item["id"],
+#                     "name": item["name"],
+#                     "status": "Image available",
+#                     "image": photo_url,  # Ссылка на изображение
+#                     "price": item["cost"],
+#                     "description": item["description_simple"],
+#                     "category": item["hierarchicalParent"],
+#                 }
+#             else:
+#                 return {
+#                     "product": item["name"],
+#                     "status": "No image found"
+#                 }
+
+#     tasks = []
+#     for idx, item in enumerate(foods['nomenclatures']):
+#         if downloaded_count >= max_downloads:
+#             break  # Останавливаем цикл, если достигнут лимит
+#         if item.get("hierarchicalParent") != 2382:  # Фильтруем товары
+#             tasks.append(get_image_url(item, idx))
+
+#     download_results = await asyncio.gather(*tasks)
+#     filtered_results = [result for result in download_results if result is not None]
+#     return filtered_results
+
+
+# Предполагается, что у вас есть уже настроенные зависимости для токена и моделе
+
 @sbisRouter.get("/sbis-products")
-async def download_kitchen_images():
+async def get_sbis_products(
+    categoryId: Optional[int] = Query(None, description="ID категории для фильтрации товаров"),
+):
     token: TokenValidation = await sbis.get_token(
         AuthorizationData(
             app_client_id=APP_CLIENT_ID,
@@ -213,13 +302,14 @@ async def download_kitchen_images():
     )
 
     # Получаем список точек продаж и прайс-листов
-    poinID: dict = await sbis.get_point_id(token)
-    menu: dict = await sbis.get_price_lists(token, poinID['salesPoints'][0]['id'])
+    point_id_data: dict = await sbis.get_point_id(token)
+    point_id = point_id_data['salesPoints'][0]['id']
+    menu: dict = await sbis.get_price_lists(token, point_id)
 
     # Получаем список продуктов
     foods: dict = await sbis.get_foods(
         FoodsRequest(
-            pointId=poinID['salesPoints'][0]['id'],
+            pointId=point_id,
             priceListId=menu["priceLists"][3]["id"],
             withBalance=True,
             withBarcode=False,
@@ -228,56 +318,49 @@ async def download_kitchen_images():
         token
     )
 
-    # Создаем семафор для ограничения количества одновременных запросов
-    semaphore = asyncio.Semaphore(10)
-
-    downloaded_count = 0  # Счётчик загруженных изображений
-    max_downloads = 10  # Лимит на количество скачиваний
-
     def decode_base64_param(encoded_param: str):
         """Декодирует параметр base64 и извлекает PhotoURL"""
-        # Декодируем строку base64
         decoded_bytes = base64.b64decode(encoded_param)
         decoded_str = decoded_bytes.decode('utf-8')
-        
-        # Парсим JSON строку
         decoded_json = json.loads(decoded_str)
         return decoded_json.get('PhotoURL')
 
-    async def get_image_url(item, idx):
-        nonlocal downloaded_count  # Чтобы обновлять счётчик в функции
+    async def process_product(item):
         # Проверяем, есть ли изображения у продукта
-        if 'images' in item and item['images'] and downloaded_count < max_downloads:
-            image_url = item['images'][0]
-            encoded_param = image_url.split('?params=')[-1]  # Извлекаем часть после ?params=
-            photo_url = decode_base64_param(encoded_param)  # Декодируем base64 и извлекаем PhotoURL
-            
-            if photo_url:
-                downloaded_count += 1  # Увеличиваем счётчик
+        if 'images' in item and item['images']:
+            encoded_param = item['images'][0].split('?params=')[-1]
+            photo_url = decode_base64_param(encoded_param)
+
+            if photo_url:  # Если изображение успешно декодировано
                 return {
-                    "id": item["hierarchicalId"],
+                    "id": item["id"],
                     "name": item["name"],
                     "status": "Image available",
-                    "image": photo_url,  # Ссылка на изображение
+                    "image": photo_url,
                     "price": item["cost"],
-                    "description": item["description_simple"]
+                    "description": item.get("description_simple"),
+                    "category": item["hierarchicalParent"],
                 }
-            else:
-                return {
-                    "product": item["name"],
-                    "status": "No image found"
-                }
+        return None  # Пропускаем товары без изображений
 
-    tasks = []
-    for idx, item in enumerate(foods['nomenclatures']):
-        if downloaded_count >= max_downloads:
-            break  # Останавливаем цикл, если достигнут лимит
-        if item.get("hierarchicalParent") != 2382:  # Фильтруем товары
-            tasks.append(get_image_url(item, idx))
+    # Фильтруем товары: исключаем категорию 2382 (электронные сигареты)
+    filtered_items = [
+        item for item in foods["nomenclatures"] 
+        if (categoryId is None or item.get("hierarchicalParent") == categoryId)
+        and item.get("hierarchicalParent") != 2382  # Исключаем категорию 2382
+    ]
 
-    download_results = await asyncio.gather(*tasks)
-    filtered_results = [result for result in download_results if result is not None]
-    return filtered_results
+    # Асинхронно обрабатываем товары
+    tasks = [process_product(item) for item in filtered_items]
+    processed_items = await asyncio.gather(*tasks)
+
+    # Исключаем None (товары без изображений)
+    processed_items = [item for item in processed_items if item is not None]
+
+    return processed_items
+
+
+
 
 @sbisRouter.get("/sbis-product/{product_id}")
 async def get_product_by_id(product_id: int):
@@ -314,7 +397,7 @@ async def get_product_by_id(product_id: int):
         return decoded_json.get('PhotoURL')
 
     # Ищем товар с заданным id
-    product = next((item for item in foods['nomenclatures'] if item['hierarchicalId'] == product_id), None)
+    product = next((item for item in foods['nomenclatures'] if item['id'] == product_id), None)
     
     if product:
         # Проверяем, есть ли изображения у продукта
@@ -328,12 +411,13 @@ async def get_product_by_id(product_id: int):
 
         # Возвращаем информацию о товаре
         return {
-            "id": product["hierarchicalId"],
+            "id": product["id"],
             "name": product["name"],
-            "image": photo_url,  # Ссылка на изображение
+            "status": "Image available",
+            "image": photo_url,
             "price": product["cost"],
-            "description": product["description_simple"],
-            "status": "Product found"
+            "description": product.get("description_simple"),
+            "category": product["hierarchicalParent"],
         }
     else:
         # Если товар не найден

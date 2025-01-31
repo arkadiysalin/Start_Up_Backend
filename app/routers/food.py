@@ -26,50 +26,50 @@ class FoodService:
             await session.rollback()
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to add food: {str(e)}")
 
-    # async def get_foods(self, session: AsyncSession, category: Optional[int] = None) -> List[Food]:
-    #     """
-    #     Получение списка блюд (опционально по категории)
-    #     """
-    #     try:
-    #         query = select(Food) if category is None else select(Food).where(Food.category == category)
-    #         result = await session.execute(query)
-    #         foods = result.scalars().all()
-    #         if not foods:
-    #             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No foods found")
-    #         return foods
-    #     except Exception as e:
-    #         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to fetch foods: {str(e)}")
-    async def get_foods(self, request: FoodsRequest, token: TokenValidation) -> List[dict]:
+    async def get_foods(self, session: AsyncSession, category: Optional[int] = None) -> List[Food]:
         """
-        Получение списка блюд из API СБИСа
+        Получение списка блюд (опционально по категории)
         """
         try:
-            foods = await SBIService.get_foods(request, token)
-            if not foods.get('nomenclatures'):
+            query = select(Food) if category is None else select(Food).where(Food.category == category)
+            result = await session.execute(query)
+            foods = result.scalars().all()
+            if not foods:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No foods found")
-            
-            # Добавляем базовый URL к каждому изображению и фильтруем товары
-            base_url = "https://api.sbis.ru/retail"
-            filtered_foods = []
-            
-            for food in foods['nomenclatures']:
-                # Проверяем, не является ли hierarchicalParent равным 2382
-                if food.get('hierarchicalParent') == 2382:
-                    continue  # Пропускаем этот товар
-                
-                if 'images' in food and food['images'] is not None:
-                    # Фильтруем изображения, оставляя только те, которые не равны null
-                    valid_images = [base_url + image for image in food['images'] if image is not None]
-                    if valid_images:  # Проверяем, есть ли хотя бы одно валидное изображение
-                        food['image'] = valid_images[0]  # Используем только первое валидное изображение
-                        filtered_foods.append(food)  # Добавляем в отфильтрованный список
-            
-            if not filtered_foods:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid foods found")
-            
-            return filtered_foods
+            return foods
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to fetch foods: {str(e)}")
+    # async def get_foods(self, request: FoodsRequest, token: TokenValidation) -> List[dict]:
+    #     """
+    #     Получение списка блюд из API СБИСа
+    #     """
+    #     try:
+    #         foods = await SBIService.get_foods(request, token)
+    #         if not foods.get('nomenclatures'):
+    #             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No foods found")
+            
+    #         # Добавляем базовый URL к каждому изображению и фильтруем товары
+    #         base_url = "https://api.sbis.ru/retail"
+    #         filtered_foods = []
+            
+    #         for food in foods['nomenclatures']:
+    #             # Проверяем, не является ли hierarchicalParent равным 2382
+    #             if food.get('hierarchicalParent') == 2382:
+    #                 continue  # Пропускаем этот товар
+                
+    #             if 'images' in food and food['images'] is not None:
+    #                 # Фильтруем изображения, оставляя только те, которые не равны null
+    #                 valid_images = [base_url + image for image in food['images'] if image is not None]
+    #                 if valid_images:  # Проверяем, есть ли хотя бы одно валидное изображение
+    #                     food['image'] = valid_images[0]  # Используем только первое валидное изображение
+    #                     filtered_foods.append(food)  # Добавляем в отфильтрованный список
+            
+    #         if not filtered_foods:
+    #             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid foods found")
+            
+    #         return filtered_foods
+    #     except Exception as e:
+    #         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to fetch foods: {str(e)}")
         
     async def get_foods_categories(self, request: FoodsRequest, token: TokenValidation) -> List[dict]:
         """
@@ -179,24 +179,23 @@ async def add_all_foods(
     return {"message": "All foods added successfully"}
 
 
-# @foodRouter.get("/")
-# async def get_foods(
-#     category: Optional[int] = None,
-#     session: AsyncSession = Depends(get_async_session),
-# ):
-#     return await food_service.get_foods(session, category)
 
 sbis = SBIService()
-
 @foodRouter.get("/")
 async def get_foods(
-    point_id: Optional[int] = None,
-    price_list_id: Optional[int] = None,
+    category: Optional[int] = None,
     session: AsyncSession = Depends(get_async_session),
 ):
-    token: TokenValidation = await sbis.get_token(AuthorizationData(app_client_id=APP_CLIENT_ID, app_secret=APP_SECRET, app_secret_key=APP_SECRET_KEY))
-    request = FoodsRequest(pointId=2378, priceListId=31)
-    return await food_service.get_foods(request, token)
+    return await food_service.get_foods(session, category)
+# @foodRouter.get("/")
+# async def get_foods(
+#     point_id: Optional[int] = None,
+#     price_list_id: Optional[int] = None,
+#     session: AsyncSession = Depends(get_async_session),
+# ):
+#     token: TokenValidation = await sbis.get_token(AuthorizationData(app_client_id=APP_CLIENT_ID, app_secret=APP_SECRET, app_secret_key=APP_SECRET_KEY))
+#     request = FoodsRequest(pointId=2378, priceListId=31)
+#     return await food_service.get_foods(request, token)
 
 @foodRouter.get("/categories")
 async def get_foods_categories(
