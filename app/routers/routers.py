@@ -1,6 +1,5 @@
-from http.client import HTTPException
+from fastapi import HTTPException, APIRouter, Request
 import json
-from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 from routers.category import categoryRouter
