@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy.future import select
+from auth.database import get_async_session
+from models.models import Food
 
 router = APIRouter()
 
@@ -6,7 +10,7 @@ router = APIRouter()
 user_carts = {}
 
 @router.post("/add")
-async def add_to_cart(user_id: int, product_id: int, quantity: int = 1):
+async def add_to_cart(user_id: int, product_id: int, quantity: int = 1, db: Session = Depends(get_async_session)):
     cart = user_carts.get(user_id, {})
     if product_id in cart:
         cart[product_id] += quantity  # увеличиваем количество товара
@@ -16,9 +20,26 @@ async def add_to_cart(user_id: int, product_id: int, quantity: int = 1):
     return {"user_id": user_id, "cart": cart}
 
 @router.get("/data")
-async def get_cart(user_id: int):
+async def get_cart(user_id: int, db: Session = Depends(get_async_session)):
     cart = user_carts.get(user_id, {})
-    return {"user_id": user_id, "cart": cart}
+    response = []
+
+    for product_id, quantity in cart.items():
+        stmt = select(Food).where(Food.id == product_id)
+        result = await db.execute(stmt)
+        product = result.scalar_one_or_none()  # Получаем один объект или None
+
+        if product:
+            response.append({
+                "id": product.id,
+                "quantity": quantity,
+                "price": product.price,
+                "name": product.foodName,
+                "image": product.image,
+                "description": product.description,
+            })
+
+    return {"user_id": user_id, "cart": response}
 
 @router.delete("/remove")
 async def remove_from_cart(user_id: int, product_id: int, quantity: int = 1):
