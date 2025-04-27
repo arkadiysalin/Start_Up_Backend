@@ -4,24 +4,19 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app/
 
-# Install uv
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.4.15 /uv /bin/uv
+# Установка uv через pip (альтернатива копированию бинарника)
+RUN pip install uv==0.4.15
 
-# Place executables in the environment at the front of the path
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
-ENV PATH="/app/.venv/bin:$PATH"
+# Добавляем uv в PATH (если нужно)
+ENV PATH="/root/.local/bin:$PATH"
 
+# Копируем зависимости
 COPY ./pyproject.toml ./uv.lock ./alembic.ini /app/
 COPY ./scripts/ /app/scripts
 COPY ./migrations/ /app/migrations
-
 COPY ./app /app/app
 
-
-# Sync the project
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
-RUN uv pip install --system -i https://pypi.tuna.tsinghua.edu.cn/simple frozenlist==1.5.0
-
+# Синхронизируем зависимости через uv
+RUN uv pip install -r pyproject.toml  # Или используйте `uv sync`, если у вас есть uv.lock
 
 CMD ["uv", "run", "app/main.py"]
