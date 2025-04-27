@@ -21,7 +21,7 @@ COPY ./app /app/app
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
-RUN uv sync
+RUN uv sync --system -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 CMD ["uv", "run", "app/main.py"]
