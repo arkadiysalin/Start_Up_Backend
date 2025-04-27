@@ -2,6 +2,8 @@ version: '3.9'
 
 services:
   kimchibot:
+      - 8.8.8.8       # Google DNS
+      - 1.1.1.1       # Cloudflare DNS
     image: kimchistop-kimchibot # Your app service
     build:
       context: .  # Use the current directory as the build context
