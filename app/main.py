@@ -11,7 +11,7 @@ async def bott():
     
 
 async def fastapi():
-    config = uvicorn.Config("app:app", host="127.0.0.1", port=8000, log_level="info", reload=True, ws="websockets")
+    config = uvicorn.Config("app:app", host="0.0.0.0", port=8001, log_level="info", reload=True, ws="websockets")
     server = uvicorn.Server(config)
     await server.serve()
     print("FastAPI started")
