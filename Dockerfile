@@ -14,7 +14,8 @@ COPY ./pyproject.toml ./uv.lock ./alembic.ini /app/
 COPY ./scripts/ /app/scripts
 COPY ./migrations/ /app/migrations
 COPY ./app /app/app
-
-RUN uv sync  # или uv pip install -r pyproject.toml
+ENV UV_HTTP_TIMEOUT=120
+RUN uv sync
+# RUN pip install --no-cache-dir -r pyproject.toml
 
 CMD ["uv", "run", "app/main.py"]

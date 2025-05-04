@@ -19,7 +19,8 @@ origins = [
     "https://backend.skyrodev.ru",
     "http://127.0.0.1:3000",
     "https://kimchistop.ru",
-    "https://api.kimchistop.ru"
+    "https://api.kimchistop.ru",
+    "https://food-bot-site.netlify.app"
 
 ]
 
